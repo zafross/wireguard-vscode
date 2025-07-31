@@ -1,0 +1,36 @@
+{
+  "name": "wireguard-vscode",
+  "displayName": "WireGuard for VSCode",
+  "description": "Tunnel VSCode network requests via WireGuard with wireproxy.",
+  "version": "1.0.0",
+  "publisher": "zafross",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "wireproxy",
+    "wireguard",
+    "vpn",
+    "proxy"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wireproxy.configure",
+        "title": "WireGuard: Configure"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zafross/wireguard-vscode.git"
+  },
+  "license": "MIT"
+}
