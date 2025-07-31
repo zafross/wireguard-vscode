@@ -43,3 +43,5 @@ This is a small personal project to simplify secure VSCode networking, but I’d
 ---
 
 _This extension is not officially affiliated with or endorsed by WireGuard LLC._
+
+_This extension uses [wireproxy](https://github.com/whyvl/wireproxy), created by Wind Wong, licensed under [the ISC License](https://raw.githubusercontent.com/whyvl/wireproxy/refs/heads/master/LICENSE)._
