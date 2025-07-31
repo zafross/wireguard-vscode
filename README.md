@@ -1,8 +1,8 @@
-# WireGuard for VSCode
+# 🛡️ WireGuard for VSCode
 
 Tunnel VSCode network requests through WireGuard using wireproxy for enhanced security and bypassing regional restrictions. Automatically activates on startup to ensure seamless, secure connectivity.
 
-## Installation
+## ⚡ Installation
 
 1. **Install the Extension**:
 
@@ -16,13 +16,13 @@ Tunnel VSCode network requests through WireGuard using wireproxy for enhanced se
      - Edit the `Path` variable and add the directory containing `wireproxy.exe`.
    - **Linux/macOS**: After installation, `wireproxy` is typically added to PATH automatically.
 
-## Usage
+## ❓ Usage
 
 1. Click the status bar item (`WireProxy: No Config` or similar) in the bottom-right corner of VSCode.
 2. Select a WireGuard configuration file (`.conf`) via the file picker.
 3. The extension will automatically start `wireproxy`, set the proxy, and update the status bar to `WireProxy: <profile_name>`.
 
-## How It Works
+## 💡 How It Works
 
 The extension automates secure tunneling of VSCode’s network traffic (e.g., extension downloads, telemetry):
 
@@ -31,6 +31,6 @@ The extension automates secure tunneling of VSCode’s network traffic (e.g., ex
 - Displays real-time connection status via the status bar with a tooltip showing the current status and port.
 - Handles errors gracefully, resetting the configuration if `wireproxy` fails or the config is invalid.
 
-## Contributing
+## 🌟 Contributing
 
 This is a small personal project to simplify secure VSCode networking, but I’d love contributions! Feel free to open issues or submit pull requests on GitHub.
