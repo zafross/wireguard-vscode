@@ -4,6 +4,7 @@
   "description": "Tunnel VSCode network requests via WireGuard with wireproxy.",
   "version": "1.0.0",
   "publisher": "zafross",
+  "icon": "logo.png",
   "engines": {
     "vscode": "^1.60.0"
   },

@@ -30,7 +30,12 @@ The extension automates secure tunneling of VSCode’s network traffic (e.g., ex
 - Spawns the `wireproxy` process with the selected WireGuard `.conf` file.
 - Displays real-time connection status via the status bar with a tooltip showing the current status and port.
 - Handles errors gracefully, resetting the configuration if `wireproxy` fails or the config is invalid.
+- Uses `"\*"` in `activationEvents` to activate immediately on VSCode startup, ensuring the proxy is set up before other extensions make network requests, allowing their traffic to be securely tunneled.
 
 ## 🌟 Contributing
 
 This is a small personal project to simplify secure VSCode networking, but I’d love contributions! Feel free to open issues or submit pull requests on GitHub.
+
+---
+
+_This extension is not officially affiliated with or endorsed by WireGuard LLC._
