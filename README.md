@@ -18,9 +18,9 @@ Tunnel VSCode network requests through WireGuard using wireproxy for enhanced se
 
 ## ❓ Usage
 
-1. Click the status bar item (`WireProxy: No Config` or similar) in the bottom-right corner of VSCode.
+1. Click the status bar item (`WireGuard: No Config` or similar) in the bottom-right corner of VSCode.
 2. Select a WireGuard configuration file (`.conf`) via the file picker.
-3. The extension will automatically start `wireproxy`, set the proxy, and update the status bar to `WireProxy: <profile_name>`.
+3. The extension will automatically start `wireproxy`, set the proxy, and update the status bar to `WireGuard: <profile_name>`.
 
 ## 💡 How It Works
 
