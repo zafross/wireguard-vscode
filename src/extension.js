@@ -3,27 +3,27 @@ const path = require("path");
 const fs = require("fs");
 const child_process = require("child_process");
 
-// Extension name used in status bar messages
 const EXTENSION_NAME = "WireGuard";
-
-// Status bar messages with Codicon icons
 const statusMessages = {
   noConfig: `$(question) ${EXTENSION_NAME}: No Config`,
   error: `$(error) ${EXTENSION_NAME}: Error`,
+  starting: `$(sync~spin) ${EXTENSION_NAME}: Starting...`,
 };
-
 const PROXY_PORT = 25345;
 
 let wireproxyProcess = null;
 let statusBar = null;
 let currentWireguardPath = null;
+let isStopping = false;
 
-// Activates the extension
+// Activates the extension and initializes status bar
 exports.activate = function (context) {
-  const configDir = path.join(context.extensionPath, "config");
-  const configPath = path.join(configDir, "wireproxy.conf");
+  const configPath = path.join(
+    context.extensionPath,
+    "config",
+    "wireproxy.conf"
+  );
 
-  // Start wireproxy if config exists
   if (fs.existsSync(configPath)) {
     currentWireguardPath = getWireguardPath(configPath);
     if (currentWireguardPath) {
@@ -31,7 +31,6 @@ exports.activate = function (context) {
     }
   }
 
-  // Initialize status bar
   statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right
   );
@@ -40,10 +39,9 @@ exports.activate = function (context) {
     ? `$(check) ${EXTENSION_NAME}: ${getProfileName(currentWireguardPath)}`
     : statusMessages.noConfig;
   statusBar.show();
-  updateTooltip(); // Update tooltip on startup
+  updateTooltip();
   context.subscriptions.push(statusBar);
 
-  // Register configure command
   context.subscriptions.push(
     vscode.commands.registerCommand("wireproxy.configure", () =>
       selectConfig(context, configPath)
@@ -51,7 +49,7 @@ exports.activate = function (context) {
   );
 };
 
-// Deactivates the extension
+// Deactivates the extension, stopping wireproxy
 exports.deactivate = function () {
   stopWireproxy();
 };
@@ -69,7 +67,10 @@ async function selectConfig(context, configPath) {
   if (file?.[0]) {
     const newWireguardPath = file[0].fsPath;
     if (newWireguardPath === currentWireguardPath) return;
+    await stopWireproxy();
     updateConfig(configPath, newWireguardPath);
+    statusBar.text = statusMessages.starting;
+    updateTooltip();
     startWireproxy(configPath, getProfileName(newWireguardPath), true);
   }
 }
@@ -94,8 +95,10 @@ function getProfileName(wireguardPath) {
 function updateConfig(configPath, wireguardPath) {
   const configDir = path.dirname(configPath);
   if (!fs.existsSync(configDir)) fs.mkdirSync(configDir);
-  const content = `WGConfig = "${wireguardPath}"\n[http]\nBindAddress = 127.0.0.1:${PROXY_PORT}`;
-  fs.writeFileSync(configPath, content);
+  fs.writeFileSync(
+    configPath,
+    `WGConfig = "${wireguardPath}"\n[http]\nBindAddress = 127.0.0.1:${PROXY_PORT}`
+  );
   currentWireguardPath = wireguardPath;
 }
 
@@ -103,18 +106,17 @@ function updateConfig(configPath, wireguardPath) {
 function resetConfig(configPath) {
   if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
   currentWireguardPath = null;
-  if (statusBar) {
-    statusBar.text = statusMessages.noConfig;
-    updateTooltip();
-  }
+  statusBar.text = statusMessages.noConfig;
+  updateTooltip();
   vscode.workspace
     .getConfiguration("http")
     .update("proxy", "", vscode.ConfigurationTarget.Global);
 }
 
-// Starts wireproxy process
+// Starts wireproxy process and sets up proxy
 function startWireproxy(configPath, profileName, isNewConfig = false) {
   stopWireproxy();
+
   vscode.workspace
     .getConfiguration("http")
     .update(
@@ -122,73 +124,107 @@ function startWireproxy(configPath, profileName, isNewConfig = false) {
       `http://127.0.0.1:${PROXY_PORT}`,
       vscode.ConfigurationTarget.Global
     );
-  wireproxyProcess = child_process.spawn("wireproxy", ["-c", configPath]);
 
-  if (isNewConfig && statusBar) {
-    statusBar.text = `$(check) ${EXTENSION_NAME}: ${profileName}`;
-    updateTooltip();
+  try {
+    wireproxyProcess = child_process.spawn("wireproxy", ["-c", configPath]);
+  } catch (err) {
+    handleError(err, configPath, isNewConfig);
+    return;
   }
 
-  wireproxyProcess.on("error", (err) => {
-    if (err.code === "ENOENT") {
-      vscode.window.showErrorMessage(
-        "WireProxy is not installed. Please install wireproxy and add it to your PATH."
-      );
-      if (isNewConfig) resetConfig(configPath);
-      else if (statusBar) {
-        statusBar.text = statusMessages.error;
+  // Wait 1 second to confirm process stability before updating status bar
+  setTimeout(() => {
+    if (wireproxyProcess && !wireproxyProcess.killed) {
+      if (statusBar && isNewConfig) {
+        statusBar.text = `$(check) ${EXTENSION_NAME}: ${profileName}`;
         updateTooltip();
-        stopWireproxy();
       }
     } else if (isNewConfig) {
-      vscode.window.showErrorMessage("Invalid WireGuard config file!");
       resetConfig(configPath);
     } else {
-      vscode.window.showErrorMessage(`WireProxy error: ${err.message}`);
-      if (statusBar) {
+      statusBar.text = statusMessages.error;
+      updateTooltip();
+      stopWireproxy();
+    }
+  }, 1000);
+
+  wireproxyProcess.on("error", (err) =>
+    handleError(err, configPath, isNewConfig)
+  );
+
+  // Suppress SIGTERM during intentional stop to avoid false error messages
+  wireproxyProcess.on("exit", (code, signal) => {
+    if (isStopping && signal === "SIGTERM") {
+      return;
+    }
+    if (code === 0) {
+      if (statusBar && isNewConfig) {
+        statusBar.text = `$(check) ${EXTENSION_NAME}: ${profileName}`;
+        updateTooltip();
+      }
+    } else {
+      vscode.window.showErrorMessage(
+        `WireProxy exited with code ${code || signal || "unknown"}. Possibly invalid configuration file.`
+      );
+      if (isNewConfig) resetConfig(configPath);
+      else {
         statusBar.text = statusMessages.error;
         updateTooltip();
       }
       stopWireproxy();
     }
   });
-
-  wireproxyProcess.on("exit", (code) => {
-    wireproxyProcess = null;
-    if (statusBar) {
-      statusBar.text = statusMessages.noConfig;
-      updateTooltip();
-    }
-    if (code !== 0) {
-      vscode.window.showErrorMessage(`WireProxy exited with code ${code}`);
-    }
-  });
 }
 
-// Stops wireproxy process and clears proxy settings
-function stopWireproxy() {
-  if (wireproxyProcess) {
-    wireproxyProcess.kill();
-    wireproxyProcess = null;
-    vscode.workspace
-      .getConfiguration("http")
-      .update("proxy", "", vscode.ConfigurationTarget.Global);
+// Handles spawn and runtime errors
+function handleError(err, configPath, isNewConfig) {
+  const message =
+    err.code === "ENOENT"
+      ? "WireProxy is not installed. Please install wireproxy and add it to your PATH."
+      : "WireProxy failed to start.";
+  vscode.window.showErrorMessage(
+    `${message} Possibly invalid configuration file.`
+  );
+  if (isNewConfig) resetConfig(configPath);
+  else {
+    statusBar.text = statusMessages.error;
+    updateTooltip();
+    stopWireproxy();
   }
+}
+
+// Stops wireproxy process asynchronously and clears proxy settings
+async function stopWireproxy() {
+  if (wireproxyProcess && !wireproxyProcess.killed) {
+    isStopping = true;
+    return new Promise((resolve) => {
+      wireproxyProcess.kill("SIGTERM");
+      wireproxyProcess.on("close", () => {
+        wireproxyProcess = null;
+        isStopping = false;
+        vscode.workspace
+          .getConfiguration("http")
+          .update("proxy", "", vscode.ConfigurationTarget.Global);
+        resolve();
+      });
+    });
+  }
+  return Promise.resolve();
 }
 
 // Gets status from status bar text
 function getStatusFromText(text) {
   if (text.startsWith("$(check)")) return "Connected";
-  else if (text.startsWith("$(question)")) return "No Config";
-  else if (text.startsWith("$(error)")) return "Error";
-  else return "Unknown";
+  if (text.startsWith("$(question)")) return "No Config";
+  if (text.startsWith("$(error)")) return "Error";
+  if (text.startsWith("$(sync~spin)")) return "Starting";
+  return "Unknown";
 }
 
-// Updates status bar tooltip
+// Updates status bar tooltip with current status and port
 function updateTooltip() {
   if (statusBar) {
     const status = getStatusFromText(statusBar.text);
-    const port = PROXY_PORT;
-    statusBar.tooltip = `Status: ${status}\nWireproxy port: ${port}`;
+    statusBar.tooltip = `Status: ${status}\nWireproxy port: ${PROXY_PORT}`;
   }
 }
