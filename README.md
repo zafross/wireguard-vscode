@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/zafross/wireguard-vscode/refs/heads/main/banner.png" alt="WireGuard VS Code Banner">
+</p>
+
 # 🛡️ WireGuard for VSCode
 
 Tunnel VSCode network requests through WireGuard using wireproxy for enhanced security and bypassing regional restrictions. Automatically activates on startup to ensure seamless, secure connectivity.
